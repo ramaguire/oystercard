@@ -4,21 +4,23 @@ describe Oystercard do
   subject(:card) { described_class.new }
   let(:limit) { Oystercard::LIMIT }
   let(:station) { double :station }
+  let(:entry_station) { double :station }
+    let(:exit_station) { double :station }
 
   it { is_expected.to respond_to(:top_up).with(1).argument }
 
   describe '#top_up' do
     it 'adds money to the card balance' do
-      expect(card.top_up(10)).to eq (10)
+      expect(card.top_up(limit)).to eq (limit)
     end
 
     it 'can top up the balance' do
-      expect{ card.top_up 1 }.to change{ card.balance }.by 1
+      expect{ card.top_up limit }.to change{ card.balance }.by limit
     end
 
     it 'prevents topping up balance if it would go over the limit' do
       card.top_up(limit)
-      expect { card.top_up 1 }.to raise_error "Top up would exceed limit of #{limit}."
+      expect { card.top_up limit }.to raise_error "Top up would exceed limit of #{limit}."
     end
   end
 
@@ -52,20 +54,39 @@ describe Oystercard do
     it 'ends journey when user touches out' do
       card.top_up(limit)
       card.touch_in(station)
-      card.touch_out
+      card.touch_out(station)
       expect(card.journey?).to eq false
     end
 
-    it 'deduces minimum fare when user touches out' do
+    it 'deducts minimum fare when user touches out' do
       minimum_fare = Oystercard::MINIMUM_FARE
-      expect { card.touch_out }.to change {card.balance}.by -minimum_fare
+      expect { card.touch_out(station) }.to change {card.balance}.by -minimum_fare
     end
 
     it 'forgets the entry station after touch out' do
       card.top_up(limit)
       card.touch_in(station)
-      expect { card.touch_out }.to change {card.entry_station}.to nil
+      expect { card.touch_out(station) }.to change {card.entry_station}.to nil
     end
+
+    it 'remembers exit station after touch out' do
+      card.top_up(limit)
+      card.touch_in(station)
+      expect(card.touch_out(station)).to eq station
+    end
+  end
+
+  it 'starts with an empty list of journeys' do
+    expect(card.journeys).to be_empty
+  end
+
+  let(:journey){ {entry_station: entry_station, exit_station: exit_station} }
+
+  it 'stores a journey' do
+    card.top_up(limit)
+    card.touch_in(entry_station)
+    card.touch_out(exit_station)
+    expect(subject.journeys).to include journey
   end
 
 end
